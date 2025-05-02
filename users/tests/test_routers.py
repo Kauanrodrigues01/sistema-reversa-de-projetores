@@ -2,6 +2,7 @@ from http import HTTPStatus
 
 from sqlalchemy import select
 
+from app.security import verify_password
 from users.models import User
 from users.schemas import UserPublicSchema
 
@@ -30,6 +31,28 @@ def test_create_user_success(client, session):
     )
 
     assert db_user is not None
+
+
+def test_create_user_password_is_hashed_correctly(client, session):
+    """Tests if the user's password is properly hashed and verifiable upon creation"""
+    user_data = {
+        'email': 'test@example.com',
+        'name': 'test name',
+        'password': 'secret',
+    }
+
+    client.post('/users', json=user_data)
+
+    db_user = session.scalar(
+        select(User).where(
+            (User.id == 1) & (User.email == user_data['email'])
+        )
+    )
+
+    assert verify_password(
+        plain_password=user_data['password'],
+        hashed_password=db_user.password
+    )
 
 
 def test_create_user_with_duplicate_email(client, user):

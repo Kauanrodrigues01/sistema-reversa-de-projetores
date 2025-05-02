@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_session
+from app.security import get_password_hash
 from users import utils
 from users.models import User
 from users.schemas import FilterPage, UserPublicSchema, UserSchema
@@ -25,7 +26,7 @@ def create_user(user: UserSchema, session: T_Session):
     db_user = User(
         email=user.email,
         name=user.name,
-        password=user.password,
+        password=get_password_hash(user.password),
     )
     session.add(db_user)
     session.commit()

@@ -1,3 +1,5 @@
-fastapi==0.33.0
+fastapi==0.115.12
 sqlalchemy==2.0.40
 alembic==1.15.2
+pydantic-settings==2.9.1
+uvicorn==0.34.2

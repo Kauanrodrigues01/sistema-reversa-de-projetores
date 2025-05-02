@@ -122,3 +122,22 @@ def test_read_users_empty_with_high_skip(client, list_with_10_users):
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == []
+
+
+def test_delete_user_success(client, user, session):
+    """Tests if a user is correctly deleted from the database"""
+    response = client.delete(f'/users/{user.id}')
+
+    assert response.status_code == HTTPStatus.NO_CONTENT
+    assert not response.text
+
+    db_user = session.scalar(select(User).where(User.id == user.id))
+    assert db_user is None
+
+
+def test_delete_user_returns_not_found_for_invalid_id(client):
+    """Tests the response when trying to delete a non-existent user"""
+    response = client.delete('/users/100000')
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == {'detail': 'User not found.'}

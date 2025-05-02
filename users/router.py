@@ -1,7 +1,7 @@
 from http import HTTPStatus
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -40,3 +40,19 @@ def list_users(session: T_Session, filter_page: T_FilterPage):
         select(User).offset(filter_page.skip).limit(filter_page.limit)
     ).all()
     return users
+
+
+@router.delete('/{user_id}', status_code=HTTPStatus.NO_CONTENT)
+def delete_user(session: T_Session, user_id: int):
+    db_user = session.scalar(
+        select(User).where(User.id == user_id)
+    )
+
+    if not db_user:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='User not found.'
+        )
+
+    session.delete(db_user)
+    session.commit()

@@ -9,3 +9,8 @@ class UserSchema(BaseModel):
 class UserPublicSchema(BaseModel):
     id: int
     username: str
+
+
+class FilterPage(BaseModel):
+    skip: int = 0
+    limit: int = 100

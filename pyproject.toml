@@ -5,7 +5,7 @@ extend-exclude = ['migrations']
 [tool.ruff.lint]
 preview = true
 select = ['I', 'F', 'E', 'W', 'PL', 'PT']
-ignore = ['E501']  # Ignora o erro de linha muito longa
+ignore = ['E501', 'PLR2004']  # Ignora o erro de linha muito longa
 
 [tool.ruff.format]
 preview = true

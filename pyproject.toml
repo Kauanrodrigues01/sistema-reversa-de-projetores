@@ -1,0 +1,23 @@
+[tool.ruff]
+line-length = 79
+extend-exclude = ['migrations']
+
+[tool.ruff.lint]
+preview = true
+select = ['I', 'F', 'E', 'W', 'PL', 'PT']
+ignore = ['E501']  # Ignora o erro de linha muito longa
+
+[tool.ruff.format]
+preview = true
+quote-style = 'single'
+
+[tool.pytest.ini_options]
+pythonpath = "."
+addopts = '-p no:warnings'
+
+[tool.taskipy.tasks]
+lint = 'ruff check .'
+format = 'ruff check --fix && ruff format .'
+run = 'fastapi dev app/main.py'
+test = 'pytest -s -x --cov=fast_zero -vv'
+post_test = 'coverage html'

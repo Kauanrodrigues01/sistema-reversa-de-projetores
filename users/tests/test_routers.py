@@ -9,7 +9,8 @@ from users.schemas import UserPublicSchema
 def test_create_user_success(client, session):
     """Tests successful user creation with valid data"""
     user_data = {
-        'username': 'test_name',
+        'email': 'test@example.com',
+        'name': 'test name',
         'password': 'secret',
     }
 
@@ -24,24 +25,25 @@ def test_create_user_success(client, session):
 
     db_user = session.scalar(
         select(User).where(
-            (User.id == 1) & (User.username == user_data['username'])
+            (User.id == 1) & (User.email == user_data['email'])
         )
     )
 
     assert db_user is not None
 
 
-def test_create_user_with_duplicate_username(client, user):
-    """Tests user creation fails when username already exists"""
+def test_create_user_with_duplicate_email(client, user):
+    """Tests user creation fails when email already exists"""
     user_data = {
-        'username': user.username,  # duplicate username
-        'password': 'secret',
+        'email': user.email,
+        'name': 'test name',
+        'password': 'secret'
     }
 
-    response = client.post('/users/', json=user_data)
+    response = client.post('/users', json=user_data)
 
     assert response.status_code == HTTPStatus.BAD_REQUEST
-    assert response.json() == {'detail': 'Username already registered'}
+    assert response.json() == {'detail': 'Email already registered'}
 
 
 def test_read_users_success(client):

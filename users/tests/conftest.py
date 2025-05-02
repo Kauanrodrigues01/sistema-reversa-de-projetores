@@ -1,6 +1,7 @@
 import pytest
 from factory.base import Factory
-from factory.declarations import LazyAttribute, Sequence
+from factory.declarations import LazyAttribute
+from factory.faker import Faker
 from sqlalchemy.orm import Session
 
 from users.models import User
@@ -10,8 +11,9 @@ class UserFactory(Factory):
     class Meta:
         model = User
 
-    username = Sequence(lambda n: f'User {n}')
-    password = LazyAttribute(lambda obj: f'{obj.username}@Password8965')
+    email = Faker('email')
+    name = Faker('name')
+    password = LazyAttribute(lambda obj: f'{obj.name}@Password8965')
 
 
 @pytest.fixture

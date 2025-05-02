@@ -20,10 +20,11 @@ T_FilterPage = Annotated[FilterPage, Query()]
     '', response_model=UserPublicSchema, status_code=HTTPStatus.CREATED
 )
 def create_user(user: UserSchema, session: T_Session):
-    utils.verify_duplicate_username(username=user.username, session=session)
+    utils.verify_duplicate_email(email=user.email, session=session)
 
     db_user = User(
-        username=user.username,
+        email=user.email,
+        name=user.name,
         password=user.password,
     )
     session.add(db_user)

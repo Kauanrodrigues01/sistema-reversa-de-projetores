@@ -1,14 +1,16 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 
 class UserSchema(BaseModel):
-    username: str
+    email: EmailStr
+    name: str
     password: str
 
 
 class UserPublicSchema(BaseModel):
     id: int
-    username: str
+    email: EmailStr
+    name: str
 
 
 class FilterPage(BaseModel):

@@ -1,4 +1,6 @@
 import pytest
+from factory.base import Factory
+from factory.declarations import LazyAttribute, Sequence
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -6,6 +8,15 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import get_session, table_registry
 from app.main import app
+from users.models import User
+
+
+class UserFactory(Factory):
+    class Meta:
+        model = User
+
+    username = Sequence(lambda n: f'User {n}')
+    password = LazyAttribute(lambda obj: f'{obj.username}@Password8965')
 
 
 @pytest.fixture
@@ -34,3 +45,13 @@ def session():
         yield session
 
     table_registry.metadata.drop_all(engine)
+
+
+@pytest.fixture
+def user(session: Session):
+    user = UserFactory()
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    return user

@@ -15,9 +15,19 @@ quote-style = 'single'
 pythonpath = "."
 addopts = '-p no:warnings'
 
+[tool.coverage.run]
+omit = [
+    "*/tests/*",
+    "*/migrations/*",
+    "*/__pycache__/*",
+    "app/*",
+    "*/conftest.py",
+    "*/__init__.py",
+]
+
 [tool.taskipy.tasks]
 lint = 'ruff check .'
 format = 'ruff check --fix && ruff format .'
-run = 'fastapi dev app/main.py'
-test = 'pytest -s -x --cov=fast_zero -vv'
+run = 'uvicorn app.main:app --reload --port 8000'
+test = 'pytest -s -x --cov=. -vv'
 post_test = 'coverage html'

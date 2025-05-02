@@ -124,6 +124,116 @@ def test_read_users_empty_with_high_skip(client, list_with_10_users):
     assert response.json() == []
 
 
+def test_patch_user_success(client, session, user):
+    """Tests if successfully updates email, name, and password."""
+    user_update_data = {
+        'email': 'test_update@gmail.com',
+        'name': 'test update name',
+        'password': 'test_new_password'
+    }
+
+    response = client.patch(
+        f'/users/{user.id}',
+        json=user_update_data,
+    )
+    json_response = response.json()
+
+    assert response.status_code == HTTPStatus.OK
+    assert json_response['email'] == user_update_data['email']
+    assert json_response['name'] == user_update_data['name']
+
+    db_user = session.get(User, user.id)
+
+    assert db_user.email == user_update_data['email']
+    assert db_user.name == user_update_data['name']
+    assert verify_password(plain_password=user_update_data['password'], hashed_password=db_user.password)
+
+
+def test_patch_user_updates_only_email(client, session, user):
+    """Tests if updates only email field when provided alone."""
+    user_update_data = {
+        'email': 'test_update@gmail.com',
+    }
+
+    response = client.patch(
+        f'/users/{user.id}',
+        json=user_update_data,
+    )
+    json_response = response.json()
+
+    assert response.status_code == HTTPStatus.OK
+    assert json_response['email'] == user_update_data['email']
+
+    db_user = session.get(User, user.id)
+
+    assert db_user.email == user_update_data['email']
+
+
+def test_patch_user_updates_only_name(client, session, user):
+    """Tests if updates only name field when provided alone."""
+    user_update_data = {
+        'name': 'test update name',
+    }
+
+    response = client.patch(
+        f'/users/{user.id}',
+        json=user_update_data,
+    )
+    json_response = response.json()
+
+    assert response.status_code == HTTPStatus.OK
+    assert json_response['name'] == user_update_data['name']
+
+    db_user = session.get(User, user.id)
+
+    assert db_user.name == user_update_data['name']
+
+
+def test_patch_user_updates_only_password(client, session, user):
+    """Tests if updates and hashes password when provided alone."""
+    user_update_data = {
+        'password': 'test_new_password'
+    }
+
+    response = client.patch(
+        f'/users/{user.id}',
+        json=user_update_data,
+    )
+
+    assert response.status_code == HTTPStatus.OK
+
+    db_user = session.get(User, user.id)
+
+    assert verify_password(plain_password=user_update_data['password'], hashed_password=db_user.password)
+
+
+def test_patch_user_returns_not_found(client):
+    """Tests if returns 404 when user doesn't exist."""
+    response = client.patch(
+        '/users/100000000',
+        json={},
+    )
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == {'detail': 'User not found.'}
+
+
+def test_patch_user_rejects_duplicate_email(client, user, user2):
+    """Tests if rejects already registered email."""
+    user_update_data = {
+        'email': user2.email,
+        'name': 'test update name',
+        'password': 'test_new_password'
+    }
+
+    response = client.patch(
+        f'/users/{user.id}',
+        json=user_update_data,
+    )
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.json()['detail'] == 'Email already registered'
+
+
 def test_delete_user_success(client, user, session):
     """Tests if a user is correctly deleted from the database"""
     response = client.delete(f'/users/{user.id}')

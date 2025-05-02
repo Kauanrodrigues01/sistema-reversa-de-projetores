@@ -13,6 +13,12 @@ class UserPublicSchema(BaseModel):
     name: str
 
 
+class UserUpdateSchema(BaseModel):
+    email: EmailStr | None = None
+    name: str | None = None
+    password: str | None = None
+
+
 class FilterPage(BaseModel):
     skip: int = 0
     limit: int = 100

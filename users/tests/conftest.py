@@ -27,6 +27,16 @@ def user(session: Session):
 
 
 @pytest.fixture
+def user2(session: Session):
+    user = UserFactory()
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    return user
+
+
+@pytest.fixture
 def list_with_10_users(session: Session):
     users = UserFactory.create_batch(10)
     session.bulk_save_objects(users)

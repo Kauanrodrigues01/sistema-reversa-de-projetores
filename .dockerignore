@@ -1,0 +1,62 @@
+# Diretórios ignorados
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+.env/
+.idea/
+.vscode/
+.git/
+.github/
+.history/
+
+# Arquivos ignorados
+*.log
+*.sqlite
+*.db
+*.env
+*.bak
+*.swp
+*.swo
+.DS_Store
+docker-compose.yml
+docker-compose.*.yml
+
+# Arquivos de desenvolvimento e teste
+tests/
+coverage.xml
+*.cover
+*.py,cover
+htmlcov/
+.coverage
+.coverage.*
+pytest.ini
+tox.ini
+setup.cfg
+
+# Build e distribuição
+build/
+dist/
+*.egg-info/
+*.egg
+*.manifest
+*.spec
+
+# Documentação
+docs/
+_build/
+
+.gitignore
+
+# Exceções (arquivos que devem ser incluídos apesar dos padrões acima)
+!alembic/
+!alembic.ini
+!migrations/
+!migrations/env.py
+!migrations/script.py.mako
+!app/core/config.py

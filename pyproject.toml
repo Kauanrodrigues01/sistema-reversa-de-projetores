@@ -20,7 +20,6 @@ omit = [
     "*/tests/*",
     "*/migrations/*",
     "*/__pycache__/*",
-    "app/*",
     "*/conftest.py",
     "*/__init__.py",
 ]

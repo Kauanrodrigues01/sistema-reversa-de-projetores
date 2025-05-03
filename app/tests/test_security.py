@@ -1,12 +1,11 @@
 from unittest.mock import patch
 from datetime import datetime, timedelta
-from http import HTTPStatus
 from zoneinfo import ZoneInfo
 
 import jwt
 from jwt import PyJWTError
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 
 from app.security import (
     create_access_token,
@@ -98,7 +97,7 @@ def test_create_refresh_token_jwt_error(user_payload):
             create_refresh_token(user_payload)
         
         # Verificações
-        assert exc_info.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "Failed to generate refresh token: Mocked JWT encoding error" in str(exc_info.value.detail)
         mock_encode.assert_called_once()
 
@@ -125,7 +124,7 @@ def test_verify_refresh_token_expired(user_payload):
 
     with pytest.raises(HTTPException) as exc_info:
         verify_refresh_token(token)
-    assert exc_info.value.status_code == HTTPStatus.UNAUTHORIZED
+    assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
     assert exc_info.value.detail == 'Refresh token expired'
 
 
@@ -134,7 +133,7 @@ def test_verify_refresh_token_invalid_type(user_payload):
     access_token = create_access_token(user_payload)
     with pytest.raises(HTTPException) as exc_info:
         verify_refresh_token(access_token)
-    assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
     assert exc_info.value.detail == 'Invalid token type'
 
 
@@ -145,7 +144,7 @@ def test_verify_refresh_token_invalid_signature(user_payload):
     tampered_token = token[:-5] + 'aaaaa'
     with pytest.raises(HTTPException) as exc_info:
         verify_refresh_token(tampered_token)
-    assert exc_info.value.status_code == HTTPStatus.UNAUTHORIZED
+    assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
     assert exc_info.value.detail == 'Invalid refresh token'
 
 
@@ -153,7 +152,7 @@ def test_verify_refresh_token_malformed():
     """Test verification with malformed token"""
     with pytest.raises(HTTPException) as exc_info:
         verify_refresh_token('not.a.real.token')
-    assert exc_info.value.status_code == HTTPStatus.UNAUTHORIZED
+    assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
     assert exc_info.value.detail == 'Invalid refresh token'
 
 
@@ -168,7 +167,7 @@ def test_token_creation_jwt_error(user_payload, monkeypatch):
 
     with pytest.raises(HTTPException) as exc_info:
         create_access_token(user_payload)
-    assert exc_info.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+    assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
     assert 'Failed to generate access token' in exc_info.value.detail
 
 

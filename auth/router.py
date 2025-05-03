@@ -1,6 +1,4 @@
-from http import HTTPStatus
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 
@@ -30,7 +28,7 @@ def login_for_access_token(
 
     if not user or not verify_password(form_data.password, user.password):
         raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail='Incorrect email or password',
         )
 
@@ -58,7 +56,7 @@ def refresh_access_token(
 
         if not user:
             raise HTTPException(
-                status_code=HTTPStatus.NOT_FOUND, detail='User not found'
+                status_code=status.HTTP_404_NOT_FOUND, detail='User not found'
             )
 
         new_access_token = create_access_token({'sub': user.email})
@@ -68,6 +66,6 @@ def refresh_access_token(
         raise e
     except Exception as e:
         raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f'Erro ao renovar token: {str(e)}',
         )

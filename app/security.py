@@ -1,9 +1,8 @@
 from datetime import datetime, timedelta
-from http import HTTPStatus
 from zoneinfo import ZoneInfo
 
 import jwt
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from jwt import ExpiredSignatureError, PyJWTError
 from pwdlib import PasswordHash
 
@@ -43,7 +42,7 @@ def create_access_token(data_payload: dict) -> str:
         )
     except PyJWTError as e:
         raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f'Failed to generate access token: {str(e)}',
         )
 
@@ -71,7 +70,7 @@ def create_refresh_token(data_payload: dict) -> str:
         )
     except PyJWTError as e:
         raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f'Failed to generate refresh token: {str(e)}',
         )
 
@@ -84,14 +83,16 @@ def verify_refresh_token(token: str) -> dict:
 
         if payload.get('type') != 'refresh':
             raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST, detail='Invalid token type'
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Invalid token type'
             )
 
         return payload
 
     except ExpiredSignatureError:
         raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED, detail='Refresh token expired'
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Refresh token expired'
         )
     except PyJWTError:
         raise HTTPException(status_code=401, detail='Invalid refresh token')

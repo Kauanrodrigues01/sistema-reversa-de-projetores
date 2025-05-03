@@ -1,6 +1,7 @@
 import pytest
 from factory.base import Factory
-from factory.declarations import LazyAttribute, Sequence
+from factory.declarations import LazyAttribute
+from factory.faker import Faker
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -8,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import get_session, table_registry
 from app.main import app
+from app.security import get_password_hash
 from users.models import User
 
 
@@ -15,8 +17,9 @@ class UserFactory(Factory):
     class Meta:
         model = User
 
-    username = Sequence(lambda n: f'User {n}')
-    password = LazyAttribute(lambda obj: f'{obj.username}@Password8965')
+    email = Faker('email')
+    name = Faker('name')
+    password = LazyAttribute(lambda obj: f'{obj.name}@Password8965')
 
 
 @pytest.fixture
@@ -29,6 +32,41 @@ def client(session):
         yield client
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def user(session: Session):
+    password = 'testtest'
+    user = UserFactory(password=get_password_hash(password))
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    user.clean_password = password
+
+    return user
+
+
+@pytest.fixture
+def user2(session: Session):
+    password = 'testtest'
+    user = UserFactory(password=get_password_hash(password))
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    user.clean_password = password
+
+    return user
+
+
+@pytest.fixture
+def list_with_10_users(session: Session):
+    users = UserFactory.create_batch(10)
+    session.bulk_save_objects(users)
+    session.commit()
+
+    return users
 
 
 @pytest.fixture
@@ -45,13 +83,3 @@ def session():
         yield session
 
     table_registry.metadata.drop_all(engine)
-
-
-@pytest.fixture
-def user(session: Session):
-    user = UserFactory()
-    session.add(user)
-    session.commit()
-    session.refresh(user)
-
-    return user

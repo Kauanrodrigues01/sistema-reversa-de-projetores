@@ -1,20 +1,19 @@
 from http import HTTPStatus
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
-from app.database import get_session
+from app.dependencies import T_FilterPage, T_Session
 from app.security import get_password_hash
 from users import utils
 from users.models import User
-from users.schemas import FilterPage, UserPublicSchema, UserSchema, UserUpdateSchema
+from users.schemas import (
+    UserPublicSchema,
+    UserSchema,
+    UserUpdateSchema,
+)
 
 router = APIRouter(prefix='/users', tags=['users'])
-
-T_Session = Annotated[Session, Depends(get_session)]
-T_FilterPage = Annotated[FilterPage, Query()]
 
 
 @router.post(
@@ -44,18 +43,17 @@ def list_users(session: T_Session, filter_page: T_FilterPage):
 
 @router.patch('/{user_id}', response_model=UserPublicSchema)
 def update_user(user: UserUpdateSchema, session: T_Session, user_id: int):
-    db_user = session.scalar(
-        select(User).where(User.id == user_id)
-    )
+    db_user = session.scalar(select(User).where(User.id == user_id))
 
     if not db_user:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='User not found.'
+            status_code=HTTPStatus.NOT_FOUND, detail='User not found.'
         )
-    
-    utils.verify_duplicate_email(email=user.email, session=session, user_id=db_user.id)
-    
+
+    utils.verify_duplicate_email(
+        email=user.email, session=session, user_id=db_user.id
+    )
+
     for key, value in user.model_dump(exclude_unset=True).items():
         if key == 'password':
             setattr(db_user, key, get_password_hash(value))
@@ -70,14 +68,11 @@ def update_user(user: UserUpdateSchema, session: T_Session, user_id: int):
 
 @router.delete('/{user_id}', status_code=HTTPStatus.NO_CONTENT)
 def delete_user(session: T_Session, user_id: int):
-    db_user = session.scalar(
-        select(User).where(User.id == user_id)
-    )
+    db_user = session.scalar(select(User).where(User.id == user_id))
 
     if not db_user:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='User not found.'
+            status_code=HTTPStatus.NOT_FOUND, detail='User not found.'
         )
 
     session.delete(db_user)

@@ -25,9 +25,7 @@ def test_create_user_success(client, session):
     assert response.json() == response_user_data
 
     db_user = session.scalar(
-        select(User).where(
-            (User.id == 1) & (User.email == user_data['email'])
-        )
+        select(User).where((User.id == 1) & (User.email == user_data['email']))
     )
 
     assert db_user is not None
@@ -44,14 +42,11 @@ def test_create_user_password_is_hashed_correctly(client, session):
     client.post('/users', json=user_data)
 
     db_user = session.scalar(
-        select(User).where(
-            (User.id == 1) & (User.email == user_data['email'])
-        )
+        select(User).where((User.id == 1) & (User.email == user_data['email']))
     )
 
     assert verify_password(
-        plain_password=user_data['password'],
-        hashed_password=db_user.password
+        plain_password=user_data['password'], hashed_password=db_user.password
     )
 
 
@@ -60,7 +55,7 @@ def test_create_user_with_duplicate_email(client, user):
     user_data = {
         'email': user.email,
         'name': 'test name',
-        'password': 'secret'
+        'password': 'secret',
     }
 
     response = client.post('/users', json=user_data)
@@ -129,7 +124,7 @@ def test_patch_user_success(client, session, user):
     user_update_data = {
         'email': 'test_update@gmail.com',
         'name': 'test update name',
-        'password': 'test_new_password'
+        'password': 'test_new_password',
     }
 
     response = client.patch(
@@ -146,7 +141,10 @@ def test_patch_user_success(client, session, user):
 
     assert db_user.email == user_update_data['email']
     assert db_user.name == user_update_data['name']
-    assert verify_password(plain_password=user_update_data['password'], hashed_password=db_user.password)
+    assert verify_password(
+        plain_password=user_update_data['password'],
+        hashed_password=db_user.password,
+    )
 
 
 def test_patch_user_updates_only_email(client, session, user):
@@ -191,9 +189,7 @@ def test_patch_user_updates_only_name(client, session, user):
 
 def test_patch_user_updates_only_password(client, session, user):
     """Tests if updates and hashes password when provided alone."""
-    user_update_data = {
-        'password': 'test_new_password'
-    }
+    user_update_data = {'password': 'test_new_password'}
 
     response = client.patch(
         f'/users/{user.id}',
@@ -204,7 +200,10 @@ def test_patch_user_updates_only_password(client, session, user):
 
     db_user = session.get(User, user.id)
 
-    assert verify_password(plain_password=user_update_data['password'], hashed_password=db_user.password)
+    assert verify_password(
+        plain_password=user_update_data['password'],
+        hashed_password=db_user.password,
+    )
 
 
 def test_patch_user_returns_not_found(client):
@@ -222,7 +221,7 @@ def test_patch_user_rejects_duplicate_email(client, user, user2):
     user_update_data = {
         'email': user2.email,
         'name': 'test update name',
-        'password': 'test_new_password'
+        'password': 'test_new_password',
     }
 
     response = client.patch(

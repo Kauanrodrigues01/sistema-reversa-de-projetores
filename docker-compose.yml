@@ -1,6 +1,6 @@
 services:
   api:
-    container_name: api
+    container_name: api-reserva-de-projetores
     build: .
     ports:
       - "8000:8000"
@@ -9,11 +9,16 @@ services:
         condition: service_healthy
     env_file:
       - .env
-    restart: unless-stopped
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -sf http://127.0.0.1:8000/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   db:
-    container_name: db
+    container_name: db-reserva-de-projetores
     image: postgres:15-alpine
     environment:
       - POSTGRES_USER=fastapi

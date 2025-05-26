@@ -2,8 +2,8 @@ from fastapi import status
 from sqlalchemy import select
 
 from app.security import verify_password
-from users.models import User
-from users.schemas import UserPublicSchema
+from modules.users.models import User
+from modules.users.schemas import UserPublicSchema
 
 
 def test_create_user_success(client, session):
@@ -14,7 +14,7 @@ def test_create_user_success(client, session):
         'password': 'secret',
     }
 
-    response = client.post('/users', json=user_data)
+    response = client.post('/users/register', json=user_data)
 
     response_user_data = user_data.copy()
     del response_user_data['password']
@@ -38,7 +38,7 @@ def test_create_user_password_is_hashed_correctly(client, session):
         'password': 'secret',
     }
 
-    client.post('/users', json=user_data)
+    client.post('/users/register', json=user_data)
 
     db_user = session.scalar(
         select(User).where((User.id == 1) & (User.email == user_data['email']))
@@ -57,7 +57,7 @@ def test_create_user_with_duplicate_email(client, user):
         'password': 'secret',
     }
 
-    response = client.post('/users', json=user_data)
+    response = client.post('/users/register', json=user_data)
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.json() == {'detail': 'Email already registered'}
@@ -118,8 +118,9 @@ def test_read_users_empty_with_high_skip(client, list_with_10_users):
     assert response.json() == []
 
 
-def test_patch_user_success(client, session, user):
+def test_patch_user_success(client, session, user, create_token):
     """Tests if successfully updates email, name, and password."""
+    access_token = create_token(user).get('access_token')
     user_update_data = {
         'email': 'test_update@gmail.com',
         'name': 'test update name',
@@ -127,8 +128,9 @@ def test_patch_user_success(client, session, user):
     }
 
     response = client.patch(
-        f'/users/{user.id}',
+        f'/users/me',
         json=user_update_data,
+        headers={'Authorization': f'Bearer {access_token}'},
     )
     json_response = response.json()
 
@@ -146,15 +148,18 @@ def test_patch_user_success(client, session, user):
     )
 
 
-def test_patch_user_updates_only_email(client, session, user):
+def test_patch_user_updates_only_email(client, session, user, create_token):
     """Tests if updates only email field when provided alone."""
+    access_token = create_token(user).get('access_token')
+
     user_update_data = {
         'email': 'test_update@gmail.com',
     }
 
     response = client.patch(
-        f'/users/{user.id}',
+        f'/users/me',
         json=user_update_data,
+        headers={'Authorization': f'Bearer {access_token}'},
     )
     json_response = response.json()
 
@@ -166,15 +171,18 @@ def test_patch_user_updates_only_email(client, session, user):
     assert db_user.email == user_update_data['email']
 
 
-def test_patch_user_updates_only_name(client, session, user):
+def test_patch_user_updates_only_name(client, session, user, create_token):
     """Tests if updates only name field when provided alone."""
+    access_token = create_token(user).get('access_token')
+
     user_update_data = {
         'name': 'test update name',
     }
 
     response = client.patch(
-        f'/users/{user.id}',
+        f'/users/me',
         json=user_update_data,
+        headers={'Authorization': f'Bearer {access_token}'},
     )
     json_response = response.json()
 
@@ -186,13 +194,16 @@ def test_patch_user_updates_only_name(client, session, user):
     assert db_user.name == user_update_data['name']
 
 
-def test_patch_user_updates_only_password(client, session, user):
+def test_patch_user_updates_only_password(client, session, user, create_token):
     """Tests if updates and hashes password when provided alone."""
+    access_token = create_token(user).get('access_token')
+
     user_update_data = {'password': 'test_new_password'}
 
     response = client.patch(
-        f'/users/{user.id}',
+        f'/users/me',
         json=user_update_data,
+        headers={'Authorization': f'Bearer {access_token}'},
     )
 
     assert response.status_code == status.HTTP_200_OK
@@ -205,18 +216,25 @@ def test_patch_user_updates_only_password(client, session, user):
     )
 
 
-def test_patch_user_returns_not_found(client):
-    """Tests if returns 404 when user doesn't exist."""
+def test_patch_user_without_authentication(client, user):
+    """Tests if rejects patch request without authentication"""
+    user_update_data = {
+        'email': 'user_test@gmail.com',
+    }
+    
     response = client.patch(
-        '/users/100000000',
-        json={},
+        f'/users/me',
+        json=user_update_data,
     )
-    assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert response.json() == {'detail': 'User not found'}
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.json() == {'detail': 'Not authenticated'}
 
 
-def test_patch_user_rejects_duplicate_email(client, user, user2):
+def test_patch_user_rejects_duplicate_email(client, user, user2, create_token):
     """Tests if rejects already registered email."""
+    access_token = create_token(user).get('access_token')
+
     user_update_data = {
         'email': user2.email,
         'name': 'test update name',
@@ -224,17 +242,23 @@ def test_patch_user_rejects_duplicate_email(client, user, user2):
     }
 
     response = client.patch(
-        f'/users/{user.id}',
+        f'/users/me',
         json=user_update_data,
+        headers={'Authorization': f'Bearer {access_token}'},
     )
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.json()['detail'] == 'Email already registered'
 
 
-def test_delete_user_success(client, user, session):
+def test_delete_user_success(client, user, session, create_token):
     """Tests if a user is correctly deleted from the database"""
-    response = client.delete(f'/users/{user.id}')
+    access_token = create_token(user).get('access_token')
+
+    response = client.delete(
+        f'/users/me',
+        headers={'Authorization': f'Bearer {access_token}'},
+    )
 
     assert response.status_code == status.HTTP_204_NO_CONTENT
     assert not response.text
@@ -243,9 +267,9 @@ def test_delete_user_success(client, user, session):
     assert db_user is None
 
 
-def test_delete_user_returns_not_found_for_invalid_id(client):
-    """Tests the response when trying to delete a non-existent user"""
-    response = client.delete('/users/100000')
+def test_delete_user_without_authentication(client, user):
+    """Tests if rejects delete request without authentication"""
+    response = client.delete(f'/users/me')
 
-    assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert response.json() == {'detail': 'User not found'}
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.json() == {'detail': 'Not authenticated'}

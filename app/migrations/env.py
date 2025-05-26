@@ -6,8 +6,8 @@ from sqlalchemy import pool
 from alembic import context
 from app.database import table_registry
 from app.settings import settings
-from users.models import User
-from projectors.models import Projector
+from modules.users.models import User
+from modules.projectors.models import Projector
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

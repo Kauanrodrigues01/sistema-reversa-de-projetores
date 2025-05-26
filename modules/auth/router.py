@@ -1,6 +1,12 @@
+from modules.auth.schemas import (
+    RefreshTokenRequestSchema,
+    AccessTokenSchema,
+    TokenSchema,
+)
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
+from modules.users.models import User
 
 from app.dependencies import T_Session
 from app.security import (
@@ -8,18 +14,14 @@ from app.security import (
     create_refresh_token,
     verify_password,
     verify_refresh_token,
+    blacklist_token,
+    is_token_blacklisted,
 )
-from auth.schemas import (
-    RefreshTokenRequestSchema,
-    RefreshTokenSchema,
-    TokenSchema,
-)
-from users.models import User
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 
 
-@router.post('/token', response_model=TokenSchema)
+@router.post('/login', response_model=TokenSchema)
 def login_for_access_token(
     session: T_Session,
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -44,15 +46,22 @@ def login_for_access_token(
     }
 
 
-@router.post('/token/refresh', response_model=RefreshTokenSchema)
+@router.post('/refresh', response_model=AccessTokenSchema)
 def refresh_access_token(
     request: RefreshTokenRequestSchema, session: T_Session
 ):
     try:
         payload = verify_refresh_token(request.refresh_token)
-        user_email = payload.get('sub')
+        email = payload.get('sub')
+        jti = payload.get('jti')
+        
+        if is_token_blacklisted(jti=jti):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='Token has been blacklisted',
+            )
 
-        user = session.scalar(select(User).where(User.email == user_email))
+        user = session.scalar(select(User).where(User.email == email))
 
         if not user:
             raise HTTPException(
@@ -69,3 +78,26 @@ def refresh_access_token(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f'Erro ao renovar token: {str(e)}',
         )
+
+
+@router.post('/logout', status_code=status.HTTP_205_RESET_CONTENT)
+def logout(request: RefreshTokenRequestSchema):
+    try:
+        blacklist_token(refresh_token=request.refresh_token)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f'Error during logout: {str(e)}',
+        )
+
+
+@router.post('/request-password-reset')
+def request_password_reset():
+    return {'message': 'Password reset request successful'}
+
+
+@router.post('/reset-password')
+def reset_password():
+    return {'message': 'Password reset successful'}

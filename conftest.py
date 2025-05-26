@@ -9,8 +9,8 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import get_session, table_registry
 from app.main import app
-from app.security import get_password_hash
-from users.models import User
+from app.security import get_password_hash, create_access_token, create_refresh_token
+from modules.users.models import User
 
 
 class UserFactory(Factory):
@@ -83,3 +83,15 @@ def session():
         yield session
 
     table_registry.metadata.drop_all(engine)
+
+
+@pytest.fixture
+def create_token():
+    def _create_token(user: User):
+        access_token = create_access_token({'sub': user.email})
+        refresh_token = create_refresh_token({'sub': user.email})
+        return {
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+        }
+    return _create_token

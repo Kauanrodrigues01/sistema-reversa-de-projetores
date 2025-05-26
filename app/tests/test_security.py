@@ -1,11 +1,11 @@
-from unittest.mock import patch
 from datetime import datetime, timedelta
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 import jwt
-from jwt import PyJWTError
 import pytest
 from fastapi import HTTPException, status
+from jwt import PyJWTError
 
 from app.security import (
     create_access_token,
@@ -14,8 +14,14 @@ from app.security import (
     password_hash,
     verify_password,
     verify_refresh_token,
+    blacklist_token,
+    is_token_blacklisted,
 )
 from app.settings import settings
+
+from sqlalchemy.orm import Session
+
+from app.security import get_current_user
 
 
 # Fixtures
@@ -90,15 +96,20 @@ def test_create_refresh_token_jwt_error(user_payload):
     """Test error handling during refresh token creation using unittest.mock"""
     with patch('jwt.encode') as mock_encode:
         # Configura o mock para levantar uma exceção
-        mock_encode.side_effect = PyJWTError("Mocked JWT encoding error")
-        
+        mock_encode.side_effect = PyJWTError('Mocked JWT encoding error')
+
         # Testa a função
         with pytest.raises(HTTPException) as exc_info:
             create_refresh_token(user_payload)
-        
+
         # Verificações
-        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        assert "Failed to generate refresh token: Mocked JWT encoding error" in str(exc_info.value.detail)
+        assert (
+            exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+        assert (
+            'Failed to generate refresh token: Mocked JWT encoding error'
+            in str(exc_info.value.detail)
+        )
         mock_encode.assert_called_once()
 
 
@@ -199,3 +210,125 @@ def test_refresh_token_longer_expiration(user_payload):
     )
 
     assert refresh_payload['exp'] > access_payload['exp']
+
+
+# Tests for get_current_user function
+def test_get_current_user_valid_token(session: Session, user, create_token):
+    """Test get_current_user returns the user when token is valid"""
+    token_data = create_token(user)
+    current_user = get_current_user(session=session, token=token_data['access_token'])
+
+    assert current_user is not None
+    assert current_user.email == user.email
+
+
+def test_get_current_user_user_not_found(session: Session, create_token, user):
+    """Test get_current_user raises 401 if user is not found in DB"""
+    # Gera token com email válido
+    token_data = create_token(user)
+
+    # Remove o user da sessão para simular usuário inexistente
+    session.delete(user)
+    session.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        get_current_user(session=session, token=token_data['access_token'])
+
+    assert exc.value.status_code == status.HTTP_401_UNAUTHORIZED
+    assert exc.value.detail == "Could not validate credentials"
+
+
+def test_get_current_user_with_invalid_token(session: Session):
+    """Test get_current_user raises 401 for an invalid token"""
+    fake_token = "invalid.token.string"
+
+    with pytest.raises(HTTPException) as exc:
+        get_current_user(session=session, token=fake_token)
+
+    assert exc.value.status_code == status.HTTP_401_UNAUTHORIZED
+    assert exc.value.detail == "Could not validate credentials"
+
+
+def test_get_current_user_with_expired_token(session: Session, user):
+    """Test get_current_user raises 401 for an expired token"""
+    expired_payload = {
+        "sub": user.email,
+        "exp": 0  # tempo de expiração já expirado
+    }
+    expired_token = jwt.encode(expired_payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+    with pytest.raises(HTTPException) as exc:
+        get_current_user(session=session, token=expired_token)
+
+    assert exc.value.status_code == status.HTTP_401_UNAUTHORIZED
+    assert exc.value.detail == "Token expired"
+
+
+def test_get_current_user_with_none_token(session: Session):
+    """Test get_current_user returns None when token is None"""
+    result = get_current_user(session=session, token=None)
+
+    assert result is None
+
+
+# Tests for blacklisting tokens
+
+@pytest.fixture
+def token_payload():
+    return {
+        'jti': 'unique-token-id',
+        'exp': int((datetime.utcnow() + timedelta(minutes=5)).timestamp())
+    }
+
+@pytest.fixture
+def fake_token(token_payload, user, create_token):
+    return create_token(user)['refresh_token']
+
+@patch('app.security.redis_client')
+@patch('app.security.jwt.decode')
+def test_blacklist_token_success(mock_jwt_decode, mock_redis_client, fake_token, token_payload):
+    mock_jwt_decode.return_value = token_payload
+
+    blacklist_token(fake_token)
+
+    mock_redis_client.set.assert_called_once_with(
+        f'blacklist:{token_payload['jti']}',
+        ex=token_payload['exp'],
+        value='true',
+        nx=True
+    )
+
+@patch('app.security.jwt.decode')
+def test_blacklist_token_missing_jti_or_exp(mock_jwt_decode):
+    mock_jwt_decode.return_value = {}
+
+    with pytest.raises(HTTPException) as exc_info:
+        blacklist_token('invalid-token')
+    
+    assert exc_info.value.status_code == 400
+    assert 'missing jti or exp' in str(exc_info.value.detail)
+
+@patch('app.security.redis_client')
+@patch('app.security.jwt.decode')
+def test_is_token_blacklisted_true(mock_jwt_decode, mock_redis_client, fake_token, token_payload):
+    mock_jwt_decode.return_value = token_payload
+    mock_redis_client.exists.return_value = 1
+
+    result = is_token_blacklisted(refresh_token=fake_token)
+    assert result is True
+
+@patch('app.security.redis_client')
+@patch('app.security.jwt.decode')
+def test_is_token_blacklisted_false(mock_jwt_decode, mock_redis_client, fake_token, token_payload):
+    mock_jwt_decode.return_value = token_payload
+    mock_redis_client.exists.return_value = 0
+
+    result = is_token_blacklisted(refresh_token=fake_token)
+    assert result is False
+
+def test_is_token_blacklisted_missing_jti():
+    with pytest.raises(HTTPException) as exc_info:
+        is_token_blacklisted(refresh_token=None, jti=None)
+    
+    assert exc_info.value.status_code == 400
+    assert 'jti not found' in str(exc_info.value.detail)

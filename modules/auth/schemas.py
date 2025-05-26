@@ -7,7 +7,7 @@ class TokenSchema(BaseModel):
     token_type: str
 
 
-class RefreshTokenSchema(BaseModel):
+class AccessTokenSchema(BaseModel):
     access_token: str
     token_type: str
 

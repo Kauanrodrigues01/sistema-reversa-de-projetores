@@ -2,9 +2,9 @@ from fastapi import FastAPI, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
-from auth.router import router as auth_router
-from users.router import router as users_router
 from app.dependencies import T_Session
+from modules.auth.router import router as auth_router
+from modules.users.router import router as users_router
 
 app = FastAPI(
     title='Reserva de Projetores',
@@ -25,6 +25,6 @@ def health_check(session: T_Session):
             content={
                 'status': 'error',
                 'database': 'disconnected',
-                'error': str(e)
-            }
+                'error': str(e),
+            },
         )
